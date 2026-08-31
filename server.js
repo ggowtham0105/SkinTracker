@@ -90,16 +90,29 @@ try {
    Seed demo data (runs once)
 --------------------------------------------------------- */
 function seedDemoData() {
-  const existing = db.prepare("SELECT id FROM users WHERE email = ?").get("demo@skintrack.com");
-  if (existing) return;
+  const seedUsers = [
+    { email: "demo@skintrack.com", name: "Demo User", pass: "password123" },
+    { email: "gowthamrajb.dev@gmail.com", name: "Gowtham Raj", pass: "password123" },
+    { email: "gauthamisnot08@gmail.com", name: "Gowtham", pass: "password123" },
+  ];
 
-  const hash = bcrypt.hashSync("password123", 10);
-  const result = db.prepare("INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)").run(
-    "demo@skintrack.com",
-    hash,
-    "Demo User"
-  );
-  const userId = result.lastInsertRowid;
+  for (const u of seedUsers) {
+    const existing = db.prepare("SELECT id FROM users WHERE LOWER(email) = LOWER(?)").get(u.email);
+    if (!existing) {
+      const hash = bcrypt.hashSync(u.pass, 10);
+      db.prepare("INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)").run(
+        u.email.toLowerCase(),
+        hash,
+        u.name
+      );
+    }
+  }
+
+  const demoUser = db.prepare("SELECT id FROM users WHERE email = 'demo@skintrack.com'").get();
+  const existingPhotos = db.prepare("SELECT COUNT(*) as count FROM photos WHERE user_id = ?").get(demoUser.id);
+  if (existingPhotos && existingPhotos.count > 0) return;
+
+  const userId = demoUser.id;
 
   const seedPhotos = [
     { date: "2026-08-27", area: "Face — Forehead", note: "Slight redness" },
@@ -311,14 +324,15 @@ app.post("/api/auth/signup", (req, res) => {
     return res.status(400).json({ error: "Password must be at least 6 characters" });
   }
 
-  const existing = db.prepare("SELECT id FROM users WHERE email = ?").get(email);
+  const cleanEmail = email.trim().toLowerCase();
+  const existing = db.prepare("SELECT id FROM users WHERE LOWER(email) = LOWER(?)").get(cleanEmail);
   if (existing) {
     return res.status(409).json({ error: "Email already registered" });
   }
 
   const hash = bcrypt.hashSync(password, 10);
   const result = db.prepare("INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)").run(
-    email,
+    cleanEmail,
     hash,
     name || "You"
   );
@@ -326,7 +340,7 @@ app.post("/api/auth/signup", (req, res) => {
   const token = jwt.sign({ userId: result.lastInsertRowid }, JWT_SECRET, { expiresIn: "7d" });
   res.status(201).json({
     token,
-    user: { id: result.lastInsertRowid, email, name: name || "You", avatar: "" },
+    user: { id: result.lastInsertRowid, email: cleanEmail, name: name || "You", avatar: "" },
   });
 });
 
@@ -337,7 +351,8 @@ app.post("/api/auth/login", (req, res) => {
     return res.status(400).json({ error: "Email and password are required" });
   }
 
-  const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email);
+  const cleanEmail = email.trim().toLowerCase();
+  const user = db.prepare("SELECT * FROM users WHERE LOWER(email) = LOWER(?)").get(cleanEmail);
   if (!user || !bcrypt.compareSync(password, user.password_hash)) {
     return res.status(401).json({ error: "Invalid email or password" });
   }

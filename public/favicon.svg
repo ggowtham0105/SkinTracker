@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3F6B57" />
+      <stop offset="100%" stop-color="#244434" />
+    </linearGradient>
+    <linearGradient id="leafGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#E8ECE3" />
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F2A6AC" />
+      <stop offset="100%" stop-color="#B97D82" />
+    </linearGradient>
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000000" flood-opacity="0.25" />
+    </filter>
+  </defs>
+
+  <!-- Squircle Base -->
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#bgGrad)" stroke="#53866E" stroke-width="1.5" />
+
+  <!-- Botanical Leaf / Skin Drop Contour -->
+  <g filter="url(#softShadow)">
+    <!-- Main leaf shape -->
+    <path
+      d="M32 12 C44 20 48 34 40 45 C35 52 24 52 18 46 C12 39 16 26 32 12 Z"
+      fill="url(#leafGrad)"
+      opacity="0.95"
+    />
+    <!-- Inner vein curve -->
+    <path
+      d="M32 16 C30 26 26 38 22 47"
+      fill="none"
+      stroke="#3F6B57"
+      stroke-width="2.2"
+      stroke-linecap="round"
+      opacity="0.6"
+    />
+    <!-- Glowing healthy skin dot / bloom -->
+    <circle cx="38" cy="38" r="6" fill="url(#accentGrad)" />
+    <circle cx="39.5" cy="36.5" r="1.8" fill="#FFFFFF" opacity="0.85" />
+  </g>
+</svg>

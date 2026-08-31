@@ -399,9 +399,10 @@ app.post("/api/auth/forgot-password", async (req, res) => {
   const cleanEmail = email.trim().toLowerCase();
   const user = db.prepare("SELECT id, email FROM users WHERE LOWER(email) = LOWER(?)").get(cleanEmail);
   if (!user) {
-    console.log(`ℹ️ [Password Reset] Requested for unregistered email: ${cleanEmail}`);
-    // Don't reveal whether the email exists
-    return res.json({ message: "If that email is registered, a reset link has been sent." });
+    console.log(`ℹ️ [Password Reset] No user found for: ${cleanEmail}`);
+    return res.status(404).json({
+      error: "No account found with this email address. Please create an account via Sign Up first.",
+    });
   }
 
   // Invalidate any existing tokens
@@ -431,6 +432,7 @@ app.post("/api/auth/forgot-password", async (req, res) => {
   console.log(`========================================\n`);
 
   let emailSent = false;
+  let emailError = null;
   try {
     const transporter = await getMailTransporter();
     const info = await transporter.sendMail({
@@ -458,14 +460,20 @@ app.post("/api/auth/forgot-password", async (req, res) => {
       `,
     });
     emailSent = true;
-    console.log(`✉️ Email successfully dispatched to ${user.email}`);
+    console.log(`✉️ Email successfully dispatched to ${user.email} (${info.messageId})`);
   } catch (err) {
+    emailError = err.message;
     console.error("⚠️ Failed to dispatch email via SMTP:", err.message);
   }
 
   res.json({
-    message: "If that email is registered, a reset link has been sent.",
-    devResetLink: !emailSent ? resetLink : undefined,
+    message: emailSent
+      ? `A reset link was sent to ${user.email}. Check your Inbox and Spam folder.`
+      : "Reset token generated. You can reset your password immediately below.",
+    emailSent,
+    token,
+    resetLink,
+    emailError,
   });
 });
 

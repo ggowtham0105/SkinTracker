@@ -469,24 +469,24 @@ export function SignupPage({ onSignup, onGoogleLogin, onGoLogin }) {
 /* ---------------------------------------------------------
    Forgot Password Page
 --------------------------------------------------------- */
-export function ForgotPasswordPage({ onSubmitEmail, onGoLogin }) {
+export function ForgotPasswordPage({ onSubmitEmail, onGoLogin, onGoSignup, onDirectReset }) {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [devResetLink, setDevResetLink] = useState("");
+  const [resetToken, setResetToken] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
     setSuccess("");
-    setDevResetLink("");
+    setResetToken("");
     setLoading(true);
     try {
       const data = await onSubmitEmail(email);
-      setSuccess(data.message || "If that email is registered, a reset link has been sent.");
-      if (data.devResetLink) {
-        setDevResetLink(data.devResetLink);
+      setSuccess(data.message || "Reset link generated successfully.");
+      if (data.token) {
+        setResetToken(data.token);
       }
     } catch (err) {
       setError(err.message || "Something went wrong");
@@ -524,24 +524,51 @@ export function ForgotPasswordPage({ onSubmitEmail, onGoLogin }) {
           <FormError message={error} />
           <FormSuccess message={success} />
 
-          {devResetLink && (
+          {error && error.includes("Sign Up") && (
+            <div className="text-center mb-4">
+              <button
+                type="button"
+                onClick={onGoSignup}
+                style={{ color: T.primaryDark, fontWeight: 700, fontSize: 13 }}
+                className="underline hover:opacity-80"
+              >
+                Click here to Sign Up instead &rarr;
+              </button>
+            </div>
+          )}
+
+          {resetToken && (
             <div
               style={{
-                background: T.surfaceAlt,
-                border: `1px solid ${T.border}`,
-                color: T.ink,
+                background: "#EAF3ED",
+                border: "1px solid #C4DFC9",
+                borderRadius: 18,
               }}
-              className="rounded-2xl p-4 mb-4 text-xs"
+              className="p-4 mb-5 text-center animate-fade-in shadow-xs"
             >
-              <div className="font-semibold text-xs mb-1" style={{ color: T.primaryDark }}>
-                🛠️ Local Dev Mode Link:
+              <div className="font-bold text-xs mb-1" style={{ color: "#2E5342" }}>
+                ⚡ Instant Password Reset:
               </div>
-              <a
-                href={devResetLink}
-                style={{ color: T.primary, wordBreak: "break-all", textDecoration: "underline", fontWeight: 600 }}
+              <p style={{ color: "#455A4F", fontSize: 12 }} className="mb-3 leading-relaxed">
+                You can reset your password immediately without checking your email.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onDirectReset) onDirectReset(resetToken);
+                }}
+                style={{
+                  background: "#3F6B57",
+                  color: "#FFFFFF",
+                  fontWeight: 600,
+                  fontSize: 13,
+                  borderRadius: 12,
+                  padding: "8px 20px",
+                }}
+                className="shadow-sm hover:opacity-90 active:scale-98 transition-all"
               >
-                Click here to reset your password directly &rarr;
-              </a>
+                Reset Password Now &rarr;
+              </button>
             </div>
           )}
 

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { ChevronLeft, Mail, Lock, User, Eye, EyeOff, Check, AlertCircle, X } from "lucide-react";
+import { signInWithGoogle } from "./firebase.js";
 
 /* ---------------------------------------------------------
    Design tokens (shared with App.jsx)
@@ -198,73 +199,7 @@ function Divider() {
   );
 }
 
-function GoogleChooserModal({ isOpen, onClose, onSelect, loading }) {
-  if (!isOpen) return null;
-  const accounts = [
-    { email: "gowthamrajb.dev@gmail.com", name: "Gowtham Raj", avatarBg: "#4285F4" },
-    { email: "demo@skintrack.com", name: "Demo User", avatarBg: "#3F6B57" },
-  ];
-
-  return (
-    <div
-      style={{ background: "rgba(38,40,31,0.6)", backdropFilter: "blur(4px)" }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-    >
-      <div
-        style={{ background: "#FFFFFF", width: "100%", maxWidth: 360, borderRadius: 28 }}
-        className="p-6 shadow-2xl animate-fade-in"
-      >
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2.5">
-            <svg width="22" height="22" viewBox="0 0 18 18">
-              <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.616z" fill="#4285F4"/>
-              <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" fill="#34A853"/>
-              <path d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z" fill="#FBBC05"/>
-              <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z" fill="#EA4335"/>
-            </svg>
-            <span style={{ color: "#202124", fontWeight: 700, fontSize: 16 }}>Google Sign-In</span>
-          </div>
-          <button onClick={onClose}><X size={18} color="#5f6368" /></button>
-        </div>
-
-        <p style={{ color: "#5f6368", fontSize: 13 }} className="mb-4 leading-relaxed">
-          Select an account to continue to <strong>SkinTrack</strong>
-        </p>
-
-        <div className="space-y-2 mb-4">
-          {accounts.map((acc) => (
-            <button
-              key={acc.email}
-              type="button"
-              disabled={loading}
-              onClick={() => onSelect(acc.email, acc.name)}
-              className="w-full rounded-2xl p-3 text-left flex items-center gap-3 hover:bg-black/5 active:scale-98 transition-all border border-gray-100"
-            >
-              <div
-                style={{ background: acc.avatarBg, width: 38, height: 38, borderRadius: "50%", color: "#FFFFFF" }}
-                className="flex items-center justify-center font-bold text-sm flex-shrink-0 shadow-xs"
-              >
-                {acc.name[0]}
-              </div>
-              <div className="overflow-hidden">
-                <div style={{ color: "#202124", fontWeight: 600, fontSize: 13 }}>{acc.name}</div>
-                <div style={{ color: "#5f6368", fontSize: 12 }} className="truncate">{acc.email}</div>
-              </div>
-            </button>
-          ))}
-        </div>
-
-        <button
-          onClick={onClose}
-          style={{ color: "#1a73e8", fontWeight: 600, fontSize: 13 }}
-          className="w-full py-2 text-center hover:underline"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
-}
+// GoogleChooserModal replaced by real Firebase Google popup — no fake accounts needed
 
 /* ---------------------------------------------------------
    Login Page
@@ -274,7 +209,6 @@ export function LoginPage({ onLogin, onGoogleLogin, onGoSignup, onGoForgot }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showGoogleModal, setShowGoogleModal] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
   async function handleSubmit(e) {
@@ -290,16 +224,18 @@ export function LoginPage({ onLogin, onGoogleLogin, onGoSignup, onGoForgot }) {
     }
   }
 
-  async function handleSelectGoogleAccount(selectedEmail, selectedName) {
+  async function handleGoogleSignIn() {
     setError("");
     setGoogleLoading(true);
     try {
+      const googleUser = await signInWithGoogle();
       if (onGoogleLogin) {
-        await onGoogleLogin(selectedEmail, selectedName);
+        await onGoogleLogin(googleUser.email, googleUser.name, googleUser.sub);
       }
-      setShowGoogleModal(false);
     } catch (err) {
-      setError(err.message || "Google sign-in failed");
+      if (err.code !== "auth/popup-closed-by-user") {
+        setError(err.message || "Google sign-in failed");
+      }
     } finally {
       setGoogleLoading(false);
     }
@@ -327,8 +263,8 @@ export function LoginPage({ onLogin, onGoogleLogin, onGoSignup, onGoForgot }) {
           Sign in to see your spots.
         </p>
 
-        {/* Continue with Google */}
-        <GoogleButton onClick={() => setShowGoogleModal(true)} loading={googleLoading} text="Continue with Google" />
+        {/* Continue with Google — opens real Google popup */}
+        <GoogleButton onClick={handleGoogleSignIn} loading={googleLoading} text="Continue with Google" />
 
         <Divider />
 
@@ -389,13 +325,6 @@ export function LoginPage({ onLogin, onGoogleLogin, onGoSignup, onGoForgot }) {
           </button>
         </p>
       </div>
-
-      <GoogleChooserModal
-        isOpen={showGoogleModal}
-        onClose={() => setShowGoogleModal(false)}
-        onSelect={handleSelectGoogleAccount}
-        loading={googleLoading}
-      />
     </div>
   );
 }
@@ -409,7 +338,6 @@ export function SignupPage({ onSignup, onGoogleLogin, onGoLogin }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showGoogleModal, setShowGoogleModal] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
   async function handleSubmit(e) {
@@ -429,16 +357,18 @@ export function SignupPage({ onSignup, onGoogleLogin, onGoLogin }) {
     }
   }
 
-  async function handleSelectGoogleAccount(selectedEmail, selectedName) {
+  async function handleGoogleSignIn() {
     setError("");
     setGoogleLoading(true);
     try {
+      const googleUser = await signInWithGoogle();
       if (onGoogleLogin) {
-        await onGoogleLogin(selectedEmail, selectedName);
+        await onGoogleLogin(googleUser.email, googleUser.name, googleUser.sub);
       }
-      setShowGoogleModal(false);
     } catch (err) {
-      setError(err.message || "Google sign-up failed");
+      if (err.code !== "auth/popup-closed-by-user") {
+        setError(err.message || "Google sign-up failed");
+      }
     } finally {
       setGoogleLoading(false);
     }
@@ -467,7 +397,7 @@ export function SignupPage({ onSignup, onGoogleLogin, onGoLogin }) {
         </p>
 
         {/* Continue with Google */}
-        <GoogleButton onClick={() => setShowGoogleModal(true)} loading={googleLoading} text="Continue with Google" />
+        <GoogleButton onClick={handleGoogleSignIn} loading={googleLoading} text="Continue with Google" />
 
         <Divider />
 

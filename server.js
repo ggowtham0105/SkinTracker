@@ -211,27 +211,36 @@ async function getMailTransporter() {
 }
 
 async function dispatchEmail({ to, subject, html }) {
+  let resendError = null;
+
   // Option 1: Resend HTTP API (works on cloud hosts where SMTP ports might be blocked)
   if (process.env.RESEND_API_KEY) {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.RESEND_API_KEY.trim()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: process.env.RESEND_FROM || "SkinTrack <onboarding@resend.dev>",
-        to: [to],
-        subject,
-        html,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.message || `Resend error (${res.status})`);
+    try {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${process.env.RESEND_API_KEY.trim()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: process.env.RESEND_FROM || "SkinTrack <onboarding@resend.dev>",
+          to: [to],
+          subject,
+          html,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        console.log(`✉️ Email successfully dispatched via Resend API to ${to} (ID: ${data.id})`);
+        return { id: data.id, provider: "resend" };
+      } else {
+        resendError = data.message || `Resend error (${res.status})`;
+        console.warn(`⚠️ Resend API notice: ${resendError}. Attempting SMTP delivery...`);
+      }
+    } catch (err) {
+      resendError = err.message;
+      console.warn(`⚠️ Resend fetch failed: ${err.message}. Attempting SMTP delivery...`);
     }
-    console.log(`✉️ Email successfully dispatched via Resend API to ${to} (ID: ${data.id})`);
-    return { id: data.id, provider: "resend" };
   }
 
   // Option 2: Nodemailer SMTP (Gmail / Custom SMTP / Ethereal)
@@ -500,13 +509,8 @@ app.post("/api/auth/forgot-password", async (req, res) => {
   }
 
   res.json({
-    message: emailSent
-      ? `A reset link was sent to ${user.email}. Check your Inbox and Spam folder.`
-      : "Reset token generated. You can reset your password immediately below.",
+    message: `A password reset link has been sent to ${user.email}. Please check your inbox and spam folder.`,
     emailSent,
-    token,
-    resetLink,
-    emailError,
   });
 });
 

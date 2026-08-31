@@ -2413,10 +2413,6 @@ export default function SkinTrackApp() {
             onSubmitEmail={handleForgotPassword}
             onGoLogin={() => setAuthView("login")}
             onGoSignup={() => setAuthView("signup")}
-            onDirectReset={(token) => {
-              setResetToken(token);
-              setAuthView("reset");
-            }}
           />
         </>
       );

@@ -682,7 +682,8 @@ app.post("/api/reminders/send-email", authMiddleware, async (req, res) => {
 const DIST_DIR = path.join(__dirname, "dist");
 if (fs.existsSync(DIST_DIR)) {
   app.use(express.static(DIST_DIR));
-  app.get("*", (req, res, next) => {
+  // Express 5 compatible wildcard - serve index.html for all non-API routes
+  app.use((req, res, next) => {
     if (req.path.startsWith("/api") || req.path.startsWith("/uploads")) {
       return next();
     }

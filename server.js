@@ -86,6 +86,17 @@ try {
   db.exec("ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT ''");
 } catch {}
 
+// Migration: Ensure reminder tracking and timezone columns exist in user_settings table
+try {
+  db.exec("ALTER TABLE user_settings ADD COLUMN last_reminder_date TEXT DEFAULT ''");
+} catch {}
+try {
+  db.exec("ALTER TABLE user_settings ADD COLUMN last_reminder_sent_at TEXT DEFAULT ''");
+} catch {}
+try {
+  db.exec("ALTER TABLE user_settings ADD COLUMN timezone_offset INTEGER DEFAULT 0");
+} catch {}
+
 /* ---------------------------------------------------------
    Seed demo data (runs once)
 --------------------------------------------------------- */
@@ -647,50 +658,187 @@ app.delete("/api/photos/:id", authMiddleware, (req, res) => {
   res.json({ message: "Photo deleted", id: photo.id });
 });
 
-/* ---------- Reminder routes ---------- */
+/* ---------- Reminder scheduler & routes ---------- */
 
-// Get user reminder settings
+function getReminderEmailHtml(userName, appLink) {
+  return `
+    <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px 24px; background: #FAF9F6; border-radius: 24px; border: 1px solid #E7E4DA;">
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+        <div style="width: 36px; height: 36px; border-radius: 11px; background: linear-gradient(155deg, #3F6B57 0%, #2E5342 100%); display: flex; align-items: center; justify-content: center;">
+          <div style="width: 12px; height: 12px; border-radius: 50%; background: #B97D82;"></div>
+        </div>
+        <span style="font-size: 18px; font-weight: 700; color: #26281F; letter-spacing: -0.01em;">SkinTrack</span>
+      </div>
+      
+      <h1 style="color: #26281F; font-size: 22px; font-weight: 700; margin: 0 0 10px; line-height: 1.3;">
+        Time for your skin check-in, ${userName || "there"}! 📸
+      </h1>
+      
+      <p style="color: #6E7268; font-size: 14px; line-height: 1.6; margin: 0 0 20px;">
+        Taking regular photos under consistent lighting helps you clearly track how your skin responds to routines, products, and seasons over time.
+      </p>
+
+      <div style="background: #FFFFFF; border: 1px solid #E7E4DA; border-radius: 16px; padding: 16px; margin-bottom: 24px;">
+        <div style="color: #3F6B57; font-weight: 600; font-size: 13px; margin-bottom: 4px;">
+          💡 Quick Tracking Tip
+        </div>
+        <div style="color: #6E7268; font-size: 12px; line-height: 1.5;">
+          Use natural, indirect morning light and the same camera angle for the most accurate comparison.
+        </div>
+      </div>
+      
+      <a href="${appLink}"
+         style="display: inline-block; padding: 14px 28px; background: #3F6B57; color: #FFFFFF; text-decoration: none; border-radius: 16px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 12px rgba(63, 107, 87, 0.25);">
+        Open Camera & Log Photo →
+      </a>
+      
+      <p style="color: #9A9C93; font-size: 12px; margin-top: 32px; line-height: 1.5; border-top: 1px solid #E7E4DA; padding-top: 16px;">
+        You received this reminder because notifications are enabled in your SkinTrack profile settings.
+      </p>
+    </div>
+  `;
+}
+
+// Check and send scheduled reminders
+async function checkAndSendReminders() {
+  try {
+    const now = new Date();
+    const usersWithReminders = db.prepare(`
+      SELECT 
+        u.id, u.email, u.name,
+        s.reminder_frequency, s.reminder_time, s.email_reminders, s.last_reminder_date, s.timezone_offset
+      FROM users u
+      JOIN user_settings s ON u.id = s.user_id
+      WHERE s.email_reminders = 1 AND s.reminder_frequency != 'Disabled'
+    `).all();
+
+    for (const u of usersWithReminders) {
+      // Calculate user's local date and time using timezone_offset (in minutes, from Date.getTimezoneOffset())
+      const offsetMs = (u.timezone_offset !== null && u.timezone_offset !== undefined)
+        ? -u.timezone_offset * 60 * 1000
+        : -(now.getTimezoneOffset()) * 60 * 1000;
+      
+      // Calculate user local time based on UTC
+      const userDateObj = new Date(now.getTime() + (now.getTimezoneOffset() * 60 * 1000) + offsetMs);
+      const userLocalDate = userDateObj.toISOString().slice(0, 10);
+      const hours = String(userDateObj.getHours()).padStart(2, "0");
+      const minutes = String(userDateObj.getMinutes()).padStart(2, "0");
+      const userLocalTime = `${hours}:${minutes}`;
+
+      const targetTime = u.reminder_time || "09:00";
+      if (userLocalTime !== targetTime) {
+        continue;
+      }
+
+      // Check if reminder was already sent for this local date
+      if (u.last_reminder_date === userLocalDate) {
+        continue;
+      }
+
+      // Check if user already uploaded a photo for this local date
+      const todayPhoto = db.prepare("SELECT id FROM photos WHERE user_id = ? AND date = ?").get(u.id, userLocalDate);
+      if (todayPhoto) {
+        continue;
+      }
+
+      // Interval check for non-daily frequencies
+      if (u.reminder_frequency === "Every 2 days" || u.reminder_frequency === "Every 3 days" || u.reminder_frequency === "Weekly") {
+        const lastPhoto = db.prepare("SELECT date FROM photos WHERE user_id = ? ORDER BY date DESC LIMIT 1").get(u.id);
+        const lastDate = u.last_reminder_date || (lastPhoto ? lastPhoto.date : null);
+        if (lastDate) {
+          const diffDays = Math.floor((new Date(userLocalDate + "T00:00:00") - new Date(lastDate + "T00:00:00")) / 86400000);
+          const reqDays = u.reminder_frequency === "Every 2 days" ? 2 : u.reminder_frequency === "Every 3 days" ? 3 : 7;
+          if (diffDays < reqDays) {
+            continue;
+          }
+        }
+      }
+
+      console.log(`⏰ [ReminderScheduler] Dispatching scheduled reminder to ${u.email} (${u.name}) for ${userLocalDate} at ${userLocalTime}`);
+      const appLink = `${FRONTEND_URL}/?openUpload=true`;
+
+      try {
+        await dispatchEmail({
+          to: u.email,
+          subject: "🌿 SkinTrack Reminder: Time to log today's photo!",
+          html: getReminderEmailHtml(u.name, appLink),
+        });
+
+        db.prepare(`
+          UPDATE user_settings
+          SET last_reminder_date = ?, last_reminder_sent_at = datetime('now')
+          WHERE user_id = ?
+        `).run(userLocalDate, u.id);
+
+        console.log(`✓ [ReminderScheduler] Successfully sent scheduled reminder to ${u.email}`);
+      } catch (err) {
+        console.error(`❌ [ReminderScheduler] Error sending reminder to ${u.email}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error("❌ [ReminderScheduler] Cycle error:", err.message);
+  }
+}
+
+let reminderIntervalId = null;
+function startReminderScheduler() {
+  if (reminderIntervalId) clearInterval(reminderIntervalId);
+  // Check every 30 seconds to catch exact minute marks reliably
+  reminderIntervalId = setInterval(checkAndSendReminders, 30000);
+  console.log("✓ Automated reminder background scheduler active (checking every 30s)");
+}
+
+// Get user reminder settings and today's status
 app.get("/api/reminders/settings", authMiddleware, (req, res) => {
   let settings = db.prepare("SELECT * FROM user_settings WHERE user_id = ?").get(req.userId);
   if (!settings) {
     db.prepare("INSERT INTO user_settings (user_id) VALUES (?)").run(req.userId);
     settings = db.prepare("SELECT * FROM user_settings WHERE user_id = ?").get(req.userId);
   }
-  res.json({ settings });
+  const today = new Date().toISOString().slice(0, 10);
+  const todayPhoto = db.prepare("SELECT id FROM photos WHERE user_id = ? AND date = ?").get(req.userId, today);
+  res.json({
+    settings,
+    has_photo_today: !!todayPhoto,
+    today,
+  });
 });
 
 // Update user reminder settings
 app.post("/api/reminders/settings", authMiddleware, (req, res) => {
-  const { reminder_frequency, reminder_time, email_reminders, browser_reminders } = req.body;
+  const { reminder_frequency, reminder_time, email_reminders, browser_reminders, timezone_offset } = req.body;
   const existing = db.prepare("SELECT user_id FROM user_settings WHERE user_id = ?").get(req.userId);
   if (existing) {
     db.prepare(`
       UPDATE user_settings
-      SET reminder_frequency = ?, reminder_time = ?, email_reminders = ?, browser_reminders = ?
+      SET reminder_frequency = ?, reminder_time = ?, email_reminders = ?, browser_reminders = ?, timezone_offset = ?
       WHERE user_id = ?
     `).run(
-      reminder_frequency || "Daily",
-      reminder_time || "09:00",
+      reminder_frequency !== undefined ? reminder_frequency : "Daily",
+      reminder_time !== undefined ? reminder_time : "09:00",
       email_reminders !== undefined ? (email_reminders ? 1 : 0) : 1,
       browser_reminders !== undefined ? (browser_reminders ? 1 : 0) : 1,
+      timezone_offset !== undefined ? timezone_offset : 0,
       req.userId
     );
   } else {
     db.prepare(`
-      INSERT INTO user_settings (user_id, reminder_frequency, reminder_time, email_reminders, browser_reminders)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO user_settings (user_id, reminder_frequency, reminder_time, email_reminders, browser_reminders, timezone_offset)
+      VALUES (?, ?, ?, ?, ?, ?)
     `).run(
       req.userId,
       reminder_frequency || "Daily",
       reminder_time || "09:00",
       email_reminders !== undefined ? (email_reminders ? 1 : 0) : 1,
-      browser_reminders !== undefined ? (browser_reminders ? 1 : 0) : 1
+      browser_reminders !== undefined ? (browser_reminders ? 1 : 0) : 1,
+      timezone_offset !== undefined ? timezone_offset : 0
     );
   }
-  res.json({ message: "Reminder settings updated successfully" });
+  const updated = db.prepare("SELECT * FROM user_settings WHERE user_id = ?").get(req.userId);
+  res.json({ message: "Reminder settings updated successfully", settings: updated });
 });
 
-// Send instant reminder notification email
+// Send instant / test reminder notification email
 app.post("/api/reminders/send-email", authMiddleware, async (req, res) => {
   const user = db.prepare("SELECT id, email, name FROM users WHERE id = ?").get(req.userId);
   if (!user) return res.status(404).json({ error: "User not found" });
@@ -698,48 +846,24 @@ app.post("/api/reminders/send-email", authMiddleware, async (req, res) => {
   const appLink = `${FRONTEND_URL}/?openUpload=true`;
 
   try {
-    await dispatchEmail({
+    const result = await dispatchEmail({
       to: user.email,
       subject: "🌿 SkinTrack Reminder: Time to log today's photo!",
-      html: `
-        <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px 24px; background: #FAF9F6; border-radius: 24px; border: 1px solid #E7E4DA;">
-          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
-            <div style="width: 36px; height: 36px; border-radius: 11px; background: linear-gradient(155deg, #3F6B57 0%, #2E5342 100%); display: flex; align-items: center; justify-content: center;">
-              <div style="width: 12px; height: 12px; border-radius: 50%; background: #B97D82;"></div>
-            </div>
-            <span style="font-size: 18px; font-weight: 700; color: #26281F; letter-spacing: -0.01em;">SkinTrack</span>
-          </div>
-          
-          <h1 style="color: #26281F; font-size: 22px; font-weight: 700; margin: 0 0 10px; line-height: 1.3;">
-            Time for your skin check-in, ${user.name}! 📸
-          </h1>
-          
-          <p style="color: #6E7268; font-size: 14px; line-height: 1.6; margin: 0 0 20px;">
-            Taking regular photos under consistent lighting helps you clearly track how your skin responds to routines, products, and seasons over time.
-          </p>
-
-          <div style="background: #FFFFFF; border: 1px solid #E7E4DA; border-radius: 16px; padding: 16px; margin-bottom: 24px;">
-            <div style="color: #3F6B57; font-weight: 600; font-size: 13px; margin-bottom: 4px;">
-              💡 Quick Tracking Tip
-            </div>
-            <div style="color: #6E7268; font-size: 12px; line-height: 1.5;">
-              Use natural, indirect morning light and the same camera angle for the most accurate comparison.
-            </div>
-          </div>
-          
-          <a href="${appLink}"
-             style="display: inline-block; padding: 14px 28px; background: #3F6B57; color: #FFFFFF; text-decoration: none; border-radius: 16px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 12px rgba(63, 107, 87, 0.25);">
-            Open Camera & Log Photo →
-          </a>
-          
-          <p style="color: #9A9C93; font-size: 12px; margin-top: 32px; line-height: 1.5; border-top: 1px solid #E7E4DA; padding-top: 16px;">
-            You received this reminder because notifications are enabled in your SkinTrack profile settings.
-          </p>
-        </div>
-      `,
+      html: getReminderEmailHtml(user.name, appLink),
     });
 
-    res.json({ message: `Reminder notification email sent to ${user.email}` });
+    const today = new Date().toISOString().slice(0, 10);
+    db.prepare(`
+      UPDATE user_settings
+      SET last_reminder_date = ?, last_reminder_sent_at = datetime('now')
+      WHERE user_id = ?
+    `).run(today, user.id);
+
+    res.json({
+      success: true,
+      message: `Reminder email successfully sent to ${user.email}`,
+      provider: result.provider,
+    });
   } catch (err) {
     console.error("Failed to send reminder email:", err.message);
     res.status(500).json({ error: `Failed to send reminder email: ${err.message}` });
@@ -766,4 +890,5 @@ if (fs.existsSync(DIST_DIR)) {
 --------------------------------------------------------- */
 app.listen(PORT, () => {
   console.log(`\n  🌿 SkinTrack API running at http://localhost:${PORT}\n`);
+  startReminderScheduler();
 });

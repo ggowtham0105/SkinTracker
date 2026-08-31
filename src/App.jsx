@@ -2217,7 +2217,7 @@ export default function SkinTrackApp() {
     setTimeout(() => setToastMessage(""), 3500);
   }
 
-  // Check for reset token or openUpload in URL
+  // Check for reset token or openUpload or view param in URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get("resetToken");
@@ -2230,7 +2230,17 @@ export default function SkinTrackApp() {
       setShowUpload(true);
       window.history.replaceState({}, "", window.location.pathname);
     }
+    // Support ?view=signup and ?view=login from public page CTAs
+    const view = params.get("view");
+    if (view === "signup") {
+      setAuthView("signup");
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (view === "login") {
+      setAuthView("login");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
   }, []);
+
 
   // Check existing session on mount
   useEffect(() => {

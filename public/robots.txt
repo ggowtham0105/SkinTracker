@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+
+# Public content pages — index these
+Allow: /skin-tracker
+Allow: /skin-progress-tracker
+Allow: /skin-photo-comparison
+Allow: /skincare-journal
+Allow: /how-to-track-skin-progress
+Allow: /how-to-take-skin-progress-photos
+Allow: /privacy
+Allow: /terms
+
+# Disallow private application areas
+Disallow: /api/
+Disallow: /uploads/
+
+Sitemap: https://skintrack.app/sitemap.xml

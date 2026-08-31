@@ -157,7 +157,7 @@ function seedDemoData() {
 seedDemoData();
 
 /* ---------------------------------------------------------
-   Email transporter (Ethereal for dev)
+   Email dispatcher (Resend API or Nodemailer SMTP)
 --------------------------------------------------------- */
 let mailTransporter = null;
 
@@ -208,6 +208,42 @@ async function getMailTransporter() {
   }
 
   return mailTransporter;
+}
+
+async function dispatchEmail({ to, subject, html }) {
+  // Option 1: Resend HTTP API (works on cloud hosts where SMTP ports might be blocked)
+  if (process.env.RESEND_API_KEY) {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.RESEND_API_KEY.trim()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: process.env.RESEND_FROM || "SkinTrack <onboarding@resend.dev>",
+        to: [to],
+        subject,
+        html,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.message || `Resend error (${res.status})`);
+    }
+    console.log(`✉️ Email successfully dispatched via Resend API to ${to} (ID: ${data.id})`);
+    return { id: data.id, provider: "resend" };
+  }
+
+  // Option 2: Nodemailer SMTP (Gmail / Custom SMTP / Ethereal)
+  const transporter = await getMailTransporter();
+  const info = await transporter.sendMail({
+    from: process.env.SMTP_USER ? `"SkinTrack" <${process.env.SMTP_USER.trim()}>` : '"SkinTrack" <noreply@skintrack.app>',
+    to,
+    subject,
+    html,
+  });
+  console.log(`✉️ Email successfully dispatched via SMTP to ${to} (MessageId: ${info.messageId})`);
+  return { id: info.messageId, provider: "smtp" };
 }
 
 /* ---------------------------------------------------------
@@ -434,9 +470,7 @@ app.post("/api/auth/forgot-password", async (req, res) => {
   let emailSent = false;
   let emailError = null;
   try {
-    const transporter = await getMailTransporter();
-    const info = await transporter.sendMail({
-      from: process.env.SMTP_USER ? `"SkinTrack" <${process.env.SMTP_USER.trim()}>` : '"SkinTrack" <noreply@skintrack.app>',
+    await dispatchEmail({
       to: user.email,
       subject: "Reset your SkinTrack password",
       html: `
@@ -460,10 +494,9 @@ app.post("/api/auth/forgot-password", async (req, res) => {
       `,
     });
     emailSent = true;
-    console.log(`✉️ Email successfully dispatched to ${user.email} (${info.messageId})`);
   } catch (err) {
     emailError = err.message;
-    console.error("⚠️ Failed to dispatch email via SMTP:", err.message);
+    console.error("⚠️ Failed to dispatch reset email:", err.message);
   }
 
   res.json({
@@ -646,11 +679,7 @@ app.post("/api/reminders/send-email", authMiddleware, async (req, res) => {
   const appLink = `${FRONTEND_URL}/?openUpload=true`;
 
   try {
-    const transporter = await getMailTransporter();
-    const fromAddr = process.env.SMTP_USER ? `"SkinTrack" <${process.env.SMTP_USER}>` : '"SkinTrack" <noreply@skintrack.app>';
-
-    const info = await transporter.sendMail({
-      from: fromAddr,
+    await dispatchEmail({
       to: user.email,
       subject: "🌿 SkinTrack Reminder: Time to log today's photo!",
       html: `
@@ -691,7 +720,6 @@ app.post("/api/reminders/send-email", authMiddleware, async (req, res) => {
       `,
     });
 
-    console.log(`✉️ Reminder email successfully sent to ${user.email}`);
     res.json({ message: `Reminder notification email sent to ${user.email}` });
   } catch (err) {
     console.error("Failed to send reminder email:", err.message);

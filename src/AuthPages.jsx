@@ -462,13 +462,6 @@ export function SignupPage({ onSignup, onGoogleLogin, onGoLogin }) {
           </button>
         </p>
       </div>
-
-      <GoogleChooserModal
-        isOpen={showGoogleModal}
-        onClose={() => setShowGoogleModal(false)}
-        onSelect={handleSelectGoogleAccount}
-        loading={googleLoading}
-      />
     </div>
   );
 }

@@ -164,18 +164,34 @@ let mailTransporter = null;
 async function getMailTransporter() {
   if (mailTransporter) return mailTransporter;
 
-  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-    // Production / Configured SMTP (e.g. Gmail)
-    mailTransporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: Number(process.env.SMTP_PORT) === 465,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-    console.log(`✓ Real SMTP transporter configured with ${process.env.SMTP_HOST} (${process.env.SMTP_USER})`);
+  const smtpUser = process.env.SMTP_USER ? process.env.SMTP_USER.trim() : "";
+  const smtpPass = process.env.SMTP_PASS ? process.env.SMTP_PASS.trim() : "";
+  const smtpHost = process.env.SMTP_HOST ? process.env.SMTP_HOST.trim() : "";
+  const smtpPort = Number(process.env.SMTP_PORT) || 587;
+
+  if (smtpUser && smtpPass) {
+    const isGmail = smtpHost === "smtp.gmail.com" || smtpUser.endsWith("@gmail.com");
+    if (isGmail) {
+      mailTransporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: smtpUser,
+          pass: smtpPass,
+        },
+      });
+      console.log(`✓ Real Gmail SMTP transporter configured for ${smtpUser}`);
+    } else {
+      mailTransporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpPort === 465,
+        auth: {
+          user: smtpUser,
+          pass: smtpPass,
+        },
+      });
+      console.log(`✓ Real SMTP transporter configured with ${smtpHost}:${smtpPort} (${smtpUser})`);
+    }
   } else {
     // Development: use Ethereal (free fake SMTP)
     const testAccount = await nodemailer.createTestAccount();
@@ -375,15 +391,15 @@ app.delete("/api/auth/account", authMiddleware, (req, res) => {
   res.json({ message: "Account and all associated photos permanently deleted" });
 });
 
-// Forgot password
+// Forgot password (request reset link)
 app.post("/api/auth/forgot-password", async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: "Email is required" });
 
-  const isDev = !process.env.SMTP_HOST;
-  const user = db.prepare("SELECT id FROM users WHERE email = ?").get(email);
+  const cleanEmail = email.trim().toLowerCase();
+  const user = db.prepare("SELECT id, email FROM users WHERE LOWER(email) = LOWER(?)").get(cleanEmail);
   if (!user) {
-    console.log(`ℹ️ [Password Reset] Requested for unregistered email: ${email}`);
+    console.log(`ℹ️ [Password Reset] Requested for unregistered email: ${cleanEmail}`);
     // Don't reveal whether the email exists
     return res.json({ message: "If that email is registered, a reset link has been sent." });
   }
@@ -400,10 +416,17 @@ app.post("/api/auth/forgot-password", async (req, res) => {
     expiresAt
   );
 
-  const resetLink = `${FRONTEND_URL}/?resetToken=${token}`;
+  let baseUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+  if (baseUrl === "production") {
+    baseUrl = "https://skintracker-36iu.onrender.com";
+  } else if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
+    baseUrl = `https://${baseUrl}`;
+  }
+
+  const resetLink = `${baseUrl}/?resetToken=${token}`;
 
   console.log(`\n========================================`);
-  console.log(`🔑 [Password Reset] Link generated for ${email}:`);
+  console.log(`🔑 [Password Reset] Link generated for ${user.email}:`);
   console.log(`🔗 ${resetLink}`);
   console.log(`========================================\n`);
 
@@ -411,8 +434,8 @@ app.post("/api/auth/forgot-password", async (req, res) => {
   try {
     const transporter = await getMailTransporter();
     const info = await transporter.sendMail({
-      from: process.env.SMTP_USER ? `"SkinTrack" <${process.env.SMTP_USER}>` : '"SkinTrack" <noreply@skintrack.app>',
-      to: email,
+      from: process.env.SMTP_USER ? `"SkinTrack" <${process.env.SMTP_USER.trim()}>` : '"SkinTrack" <noreply@skintrack.app>',
+      to: user.email,
       subject: "Reset your SkinTrack password",
       html: `
         <div style="font-family: 'Inter', sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px;">
@@ -435,22 +458,14 @@ app.post("/api/auth/forgot-password", async (req, res) => {
       `,
     });
     emailSent = true;
-
-    // In dev mode, log the Ethereal preview URL
-    const previewUrl = nodemailer.getTestMessageUrl(info);
-    if (previewUrl) {
-      console.log("📧 Ethereal test email preview URL:", previewUrl);
-    } else {
-      console.log(`✉️ Email successfully dispatched to ${email}`);
-    }
+    console.log(`✉️ Email successfully dispatched to ${user.email}`);
   } catch (err) {
     console.error("⚠️ Failed to dispatch email via SMTP:", err.message);
-    console.log("ℹ️ Continuing with fallback direct reset link.");
   }
 
   res.json({
     message: "If that email is registered, a reset link has been sent.",
-    devResetLink: resetLink,
+    devResetLink: !emailSent ? resetLink : undefined,
   });
 });
 

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import api, { getToken, setToken, clearToken } from "./api.js";
+import api, { getToken, setToken, clearToken, API_BASE } from "./api.js";
 import { LoginPage, SignupPage, ForgotPasswordPage, ResetPasswordPage } from "./AuthPages.jsx";
 import {
   Home,
@@ -265,7 +265,7 @@ function Header({ user, onProfile }) {
       >
         {user?.avatar ? (
           <img
-            src={user.avatar}
+            src={`${API_BASE}${user.avatar}`}
             alt={user.name || "Profile"}
             className="w-full h-full object-cover"
           />
@@ -1362,7 +1362,7 @@ function Profile({ user, photos, onLogout, onUpdateUser, onDeleteAccount, onShow
           >
             {user?.avatar ? (
               <img
-                src={user.avatar}
+                src={`${API_BASE}${user.avatar}`}
                 alt={user.name || "Profile"}
                 className="w-full h-full object-cover"
               />
@@ -2267,6 +2267,8 @@ export default function SkinTrackApp() {
         const enriched = data.photos.map((p, i) => ({
           ...p,
           tone: TONES[i % TONES.length],
+          // Prefix /uploads/ URLs with backend host for production
+          imageUrl: p.imageUrl ? `${API_BASE}${p.imageUrl}` : null,
         }));
         setPhotos(enriched);
       })

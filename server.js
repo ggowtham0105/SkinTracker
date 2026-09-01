@@ -871,6 +871,13 @@ app.post("/api/reminders/send-email", authMiddleware, async (req, res) => {
 });
 
 /* ---------------------------------------------------------
+   Health check (keeps Render free tier awake via UptimeRobot)
+--------------------------------------------------------- */
+app.get("/api/health", (_req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+/* ---------------------------------------------------------
    Serve static frontend in production
 --------------------------------------------------------- */
 const DIST_DIR = path.join(__dirname, "dist");

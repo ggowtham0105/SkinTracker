@@ -10,7 +10,7 @@
  */
 
 import React, { lazy, Suspense } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import SkinTrackApp from "./App.jsx";
 
 // Lazy-load public pages for performance
@@ -47,17 +47,19 @@ function PageLoader() {
 /**
  * Root route component:
  * - If user has a JWT token in localStorage → show SkinTrackApp (dashboard)
- * - If URL has auth-related params (?view=, ?resetToken=) → show SkinTrackApp
+ * - If URL has auth-related params (?view=, ?resetToken=, ?openUpload=) → show SkinTrackApp
  * - Otherwise → show LandingPage for organic visitors
  */
 function RootRoute() {
+  const location = useLocation();
   const token = localStorage.getItem("skintrack_token");
-  const params = new URLSearchParams(window.location.search);
-  const hasAuthParam = params.has("resetToken") || params.has("view") || params.has("openUpload");
+  const params = new URLSearchParams(location.search);
+  const viewParam = params.get("view");
+  const hasAuthParam = params.has("resetToken") || Boolean(viewParam) || params.has("openUpload");
 
   // Authenticated user or explicit auth flow → dashboard/auth app
   if (token || hasAuthParam) {
-    return <SkinTrackApp />;
+    return <SkinTrackApp initialAuthView={viewParam || "login"} key={viewParam || (token ? "app" : "auth")} />;
   }
 
   // Guest → landing page
@@ -74,6 +76,14 @@ export default function AppRouter() {
       <Routes>
         {/* ── Root: smart guest/auth dispatch ── */}
         <Route path="/" element={<RootRoute />} />
+
+        {/* ── Direct Auth & Dashboard Routes ── */}
+        <Route path="/login"                           element={<SkinTrackApp initialAuthView="login" key="login" />} />
+        <Route path="/signup"                          element={<SkinTrackApp initialAuthView="signup" key="signup" />} />
+        <Route path="/forgot-password"                 element={<SkinTrackApp initialAuthView="forgot" key="forgot" />} />
+        <Route path="/reset-password"                  element={<SkinTrackApp initialAuthView="reset" key="reset" />} />
+        <Route path="/app"                             element={<SkinTrackApp key="app" />} />
+        <Route path="/dashboard"                       element={<SkinTrackApp key="dashboard" />} />
 
         {/* ── Public SEO pages ── */}
         <Route path="/skin-tracker"                    element={<SkinTrackerPage />} />

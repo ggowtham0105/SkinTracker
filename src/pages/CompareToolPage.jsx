@@ -386,7 +386,7 @@ export default function CompareToolPage() {
           </p>
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
             <Link
-              to="/?view=signup"
+              to="/signup"
               style={{
                 background: T.primary,
                 color: "#FFFFFF",
@@ -401,7 +401,7 @@ export default function CompareToolPage() {
               Create Free Account
             </Link>
             <Link
-              to="/?view=login"
+              to="/login"
               style={{
                 background: T.surface,
                 color: T.primaryDark,

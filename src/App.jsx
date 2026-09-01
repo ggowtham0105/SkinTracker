@@ -2196,9 +2196,9 @@ function TopTabs({ active, onSelect }) {
 /* ---------------------------------------------------------
    Root app
 --------------------------------------------------------- */
-export default function SkinTrackApp() {
+export default function SkinTrackApp({ initialAuthView = "login" }) {
   // Auth state
-  const [authView, setAuthView] = useState("login"); // login | signup | forgot | reset
+  const [authView, setAuthView] = useState(initialAuthView); // login | signup | forgot | reset
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [resetToken, setResetToken] = useState(null);
@@ -2217,29 +2217,24 @@ export default function SkinTrackApp() {
     setTimeout(() => setToastMessage(""), 3500);
   }
 
-  // Check for reset token or openUpload or view param in URL
+  // Check for reset token, openUpload, or view param in URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get("resetToken");
     if (token) {
       setResetToken(token);
       setAuthView("reset");
-      window.history.replaceState({}, "", window.location.pathname);
     }
     if (params.get("openUpload") === "true") {
       setShowUpload(true);
-      window.history.replaceState({}, "", window.location.pathname);
     }
-    // Support ?view=signup and ?view=login from public page CTAs
     const view = params.get("view");
-    if (view === "signup") {
-      setAuthView("signup");
-      window.history.replaceState({}, "", window.location.pathname);
-    } else if (view === "login") {
-      setAuthView("login");
-      window.history.replaceState({}, "", window.location.pathname);
+    if (view === "signup" || view === "login" || view === "forgot" || view === "reset") {
+      setAuthView(view);
+    } else if (initialAuthView) {
+      setAuthView(initialAuthView);
     }
-  }, []);
+  }, [initialAuthView]);
 
 
   // Check existing session on mount

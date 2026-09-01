@@ -199,7 +199,7 @@ export default function LandingPage() {
             style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}
           >
             <Link
-              to="/?view=signup"
+              to="/signup"
               style={{
                 background: T.primary,
                 color: "#FFFFFF",
@@ -501,7 +501,7 @@ export default function LandingPage() {
 
           <div className="hero-btns" style={{ display: "flex", gap: 14, justifyContent: "center" }}>
             <Link
-              to="/?view=signup"
+              to="/signup"
               style={{
                 background: "#FFFFFF",
                 color: T.primaryDark,

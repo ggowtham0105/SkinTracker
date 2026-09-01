@@ -120,7 +120,7 @@ export default function SkinProgressTrackerPage() {
               Free account · Private photos · No medical advice
             </p>
             <Link
-              to="/?view=signup"
+              to="/signup"
               style={{ background: T.primary, color: "#FFFFFF", fontWeight: 700, fontSize: 15, padding: "12px 28px", borderRadius: 12, display: "inline-block" }}
             >
               Create Free Account

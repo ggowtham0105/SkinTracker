@@ -171,7 +171,7 @@ export default function PublicLayout({ children }) {
             style={{ display: "flex", alignItems: "center", gap: 10 }}
           >
             <Link
-              to="/?view=login"
+              to="/login"
               style={{
                 color: T.inkSoft,
                 fontWeight: 600,
@@ -185,7 +185,7 @@ export default function PublicLayout({ children }) {
               Log In
             </Link>
             <Link
-              to="/?view=signup"
+              to="/signup"
               style={{
                 background: T.primary,
                 color: "#FFFFFF",
@@ -275,7 +275,7 @@ export default function PublicLayout({ children }) {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <Link
-                  to="/?view=signup"
+                  to="/signup"
                   className="pub-footer-link"
                   style={{ color: T.inkSoft, fontSize: 13, fontWeight: 500 }}
                   onClick={() => trackEvent("signup_clicked", { source: "footer" })}
@@ -283,7 +283,7 @@ export default function PublicLayout({ children }) {
                   Create Free Account
                 </Link>
                 <Link
-                  to="/?view=login"
+                  to="/login"
                   className="pub-footer-link"
                   style={{ color: T.inkSoft, fontSize: 13, fontWeight: 500 }}
                 >

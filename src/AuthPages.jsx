@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import { ChevronLeft, Mail, Lock, User, Eye, EyeOff, Check, AlertCircle, X } from "lucide-react";
 import { signInWithGoogle } from "./firebase.js";
 
@@ -244,9 +245,9 @@ export function LoginPage({ onLogin, onGoogleLogin, onGoSignup, onGoForgot }) {
   return (
     <div style={{ background: T.bg, minHeight: "100vh", fontFamily: "Inter, sans-serif" }}>
       <div style={{ maxWidth: 390, margin: "0 auto" }} className="px-6 pt-16 pb-10">
-        <div className="flex justify-center mb-6">
+        <Link to="/" title="SkinTrack Home" className="flex justify-center mb-6">
           <BrandMark size={46} />
-        </div>
+        </Link>
         <h1
           style={{
             color: T.ink,
@@ -377,9 +378,9 @@ export function SignupPage({ onSignup, onGoogleLogin, onGoLogin }) {
   return (
     <div style={{ background: T.bg, minHeight: "100vh", fontFamily: "Inter, sans-serif" }}>
       <div style={{ maxWidth: 390, margin: "0 auto" }} className="px-6 pt-16 pb-10">
-        <div className="flex justify-center mb-6">
+        <Link to="/" title="SkinTrack Home" className="flex justify-center mb-6">
           <BrandMark size={46} />
-        </div>
+        </Link>
         <h1
           style={{
             color: T.ink,
@@ -502,9 +503,9 @@ export function ForgotPasswordPage({ onSubmitEmail, onGoLogin, onGoSignup }) {
           Back to sign in
         </button>
 
-        <div className="flex justify-center mb-8">
+        <Link to="/" title="SkinTrack Home" className="flex justify-center mb-8">
           <BrandMark size={52} />
-        </div>
+        </Link>
         <h1
           style={{ color: T.ink, fontSize: 24, fontWeight: 700, letterSpacing: "-0.01em" }}
           className="text-center mb-1"
@@ -590,9 +591,9 @@ export function ResetPasswordPage({ token, onReset, onGoLogin }) {
   return (
     <div style={{ background: T.bg, minHeight: "100vh", fontFamily: "Inter, sans-serif" }}>
       <div style={{ maxWidth: 400, margin: "0 auto" }} className="px-6 pt-20 pb-10">
-        <div className="flex justify-center mb-8">
+        <Link to="/" title="SkinTrack Home" className="flex justify-center mb-8">
           <BrandMark size={52} />
-        </div>
+        </Link>
         <h1
           style={{ color: T.ink, fontSize: 24, fontWeight: 700, letterSpacing: "-0.01em" }}
           className="text-center mb-1"

@@ -99,7 +99,7 @@ export default function HowToTrackPage() {
               SkinTrack is free, private, and designed to make consistent skin tracking effortless.
             </p>
             <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-              <Link to="/?view=signup" style={{ background: T.primary, color: "#FFFFFF", fontWeight: 700, fontSize: 15, padding: "12px 28px", borderRadius: 12, display: "inline-block" }}>Start Tracking Free</Link>
+              <Link to="/signup" style={{ background: T.primary, color: "#FFFFFF", fontWeight: 700, fontSize: 15, padding: "12px 28px", borderRadius: 12, display: "inline-block" }}>Start Tracking Free</Link>
               <Link to="/how-to-take-skin-progress-photos" style={{ background: T.surface, color: T.primaryDark, fontWeight: 600, fontSize: 15, padding: "12px 28px", borderRadius: 12, border: `1px solid ${T.border}`, display: "inline-block" }}>Photo Taking Guide</Link>
             </div>
           </div>

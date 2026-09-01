@@ -144,7 +144,7 @@ export default function TakePhotoGuidePage() {
           <div style={{ background: T.primarySoft, border: `1px solid ${T.primary}`, borderRadius: 20, padding: "28px 24px", marginTop: 48, textAlign: "center" }}>
             <h2 style={{ color: T.primaryDark, fontWeight: 700, fontSize: 20, margin: "0 0 10px" }}>Put these tips to use</h2>
             <p style={{ color: T.inkSoft, fontSize: 14, margin: "0 0 20px", lineHeight: 1.6 }}>Upload your first photo now — SkinTrack's camera includes alignment guides to help you maintain consistency.</p>
-            <Link to="/?view=signup" style={{ background: T.primary, color: "#FFFFFF", fontWeight: 700, fontSize: 15, padding: "12px 28px", borderRadius: 12, display: "inline-block" }}>
+            <Link to="/signup" style={{ background: T.primary, color: "#FFFFFF", fontWeight: 700, fontSize: 15, padding: "12px 28px", borderRadius: 12, display: "inline-block" }}>
               Start Tracking Free
             </Link>
           </div>

@@ -157,7 +157,7 @@ export default function SkinTrackerPage() {
             </p>
             <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
               <Link
-                to="/?view=signup"
+                to="/signup"
                 style={{ background: T.primary, color: "#FFFFFF", fontWeight: 700, fontSize: 15, padding: "12px 28px", borderRadius: 12, display: "inline-block" }}
               >
                 Create Free Account

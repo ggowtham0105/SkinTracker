@@ -113,7 +113,7 @@ export default function SkincareJournalPage() {
             <h2 style={{ color: T.primaryDark, fontWeight: 700, fontSize: 20, margin: "0 0 10px" }}>Start your skincare journal</h2>
             <p style={{ color: T.inkSoft, fontSize: 14, margin: "0 0 20px", lineHeight: 1.6 }}>Free, private, and takes less than 2 minutes per week.</p>
             <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-              <Link to="/?view=signup" style={{ background: T.primary, color: "#FFFFFF", fontWeight: 700, fontSize: 15, padding: "12px 28px", borderRadius: 12, display: "inline-block" }}>Create Free Account</Link>
+              <Link to="/signup" style={{ background: T.primary, color: "#FFFFFF", fontWeight: 700, fontSize: 15, padding: "12px 28px", borderRadius: 12, display: "inline-block" }}>Create Free Account</Link>
               <Link to="/skin-photo-comparison" style={{ background: T.surface, color: T.primaryDark, fontWeight: 600, fontSize: 15, padding: "12px 28px", borderRadius: 12, border: `1px solid ${T.border}`, display: "inline-block" }}>Try Free Comparison</Link>
             </div>
           </div>

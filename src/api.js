@@ -4,6 +4,11 @@
 
 const TOKEN_KEY = "skintrack_token";
 
+// In production (Cloudflare Pages), set VITE_API_URL to your Render backend URL.
+// e.g. https://skintracker-api.onrender.com
+// In development, leave empty — Vite proxy handles /api → localhost:3001
+const API_BASE = import.meta.env.VITE_API_URL || "";
+
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
 }
@@ -17,6 +22,7 @@ export function clearToken() {
 }
 
 async function request(method, url, body, isFormData = false) {
+  url = `${API_BASE}${url}`;
   const headers = {};
   const token = getToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
